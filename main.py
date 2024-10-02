@@ -15,10 +15,22 @@ def setup_logging():
     """
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
 
-def chat_with_open_ai() -> None:
+def main() -> None:
     """
-    Continuously listens for speech input, classifies the intent, generates a response using OpenAI,
-    and synthesizes the response to speech.
+    Main function to run the speech-to-text and text-to-speech application.
+
+    This function continuously listens for speech input, classifies the intent using OpenAI,
+    generates a response based on the classified intent, and synthesizes the response back to speech.
+
+    The function sets up logging, initializes the OpenAI and Speech services, and enters an infinite loop
+    where it performs the following steps:
+    1. Listens for speech input.
+    2. Recognizes and processes the speech input.
+    3. Classifies the intent of the recognized speech using OpenAI.
+    4. Generates a response based on the classified intent.
+    5. Synthesizes the generated response to speech and plays it back.
+
+    The loop continues until the user says 'Stop' or an EOFError is encountered.
 
     Returns:
         None
@@ -72,4 +84,4 @@ def chat_with_open_ai() -> None:
             logger.error("An error occurred: %s", e)
 
 if __name__ == "__main__":
-    chat_with_open_ai()
+    main()
