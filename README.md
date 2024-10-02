@@ -37,3 +37,11 @@ To create the necessary Azure resources, you can use the [iac-promptflow-starter
 1. **Create .env file**
 
    Copy `.env.template` to `.env` and fill in the necessary values.
+
+## Usage
+
+Run the `main.py` script to use Azure AI Speech to converse with Azure OpenAI Service.
+
+```sh
+python -m main
+```
