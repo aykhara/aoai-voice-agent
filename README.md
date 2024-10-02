@@ -1,5 +1,7 @@
 # Voice Agent with Azure OpenAI and Azure AI Speech
 
+A sample that performs text-to-speech synthesis sentence by sentence as an overall process when a streaming text response is received.
+
 ## Prerequisites
 
 Ensure you have Python installed on your system. This script requires Python 3.10 or higher.

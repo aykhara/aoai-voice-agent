@@ -36,40 +36,39 @@ def main() -> None:
         None
     """
     setup_logging()
-    logging.info("Starting the application")
+    logger.info("Starting the application")
 
-    openai_service = OpenAIService(settings.OPEN_AI_ENDPOINT, settings.OPEN_AI_KEY, settings.OPEN_AI_DEPLOYMENT_NAME, settings.INTENT_SUBCATEGORY_1, settings.INTENT_SUBCATEGORY_2, settings.PROMPT_CLASSIFY_INTENT, settings.PROMPT_SUBCATEGORY_1, settings.PROMPT_SUBCATEGORY_2)
-    speech_service = SpeechService(settings.SPEECH_KEY, settings.SPEECH_REGION, settings.SPEECH_LANGUAGE, settings.SPEECH_VOICE, settings.SPEECH_SEGMENT_SILENCE_TIMEOUT)
+    openai_service = OpenAIService(
+        settings.OPEN_AI_ENDPOINT, settings.OPEN_AI_KEY, 
+        settings.OPEN_AI_DEPLOYMENT_NAME, settings.INTENT_SUBCATEGORY_1, 
+        settings.INTENT_SUBCATEGORY_2, settings.PROMPT_CLASSIFY_INTENT, 
+        settings.PROMPT_SUBCATEGORY_1, settings.PROMPT_SUBCATEGORY_2
+    )
+    speech_service = SpeechService(
+        settings.SPEECH_KEY, settings.SPEECH_REGION, 
+        settings.SPEECH_LANGUAGE, settings.SPEECH_VOICE, 
+        settings.SPEECH_SEGMENT_SILENCE_TIMEOUT
+    )
 
     while True:
-        logger.info("Azure OpenAI is listening. Say 'Stop' or press Ctrl-Z to end the conversation.")
+        logger.info("Azure OpenAI is listening. Say 'Stop' to end the conversation.")
         try:
             start_time = None
-            # Recognize speech input
             speech_recognition_result = speech_service.recognize_speech()
 
             if speech_recognition_result.reason == speechsdk.ResultReason.RecognizedSpeech:
                 if speech_recognition_result.text.lower() == "stop":
                     logger.info("Conversation ended.")
                     break
-                logger.info("Recognized speech: %s", speech_recognition_result.text)
 
+                logger.info("Recognized speech: %s", speech_recognition_result.text)
                 start_time = time.time()
 
-                gpt_response = openai_service.ask_openai(speech_recognition_result.text)
+                # Use streaming ask_openai and pass tts_sentence_end from speech_service
+                openai_service.ask_openai(speech_recognition_result.text, speech_service, settings.SPEECH_RATE)
 
-                tts_start_time = time.time()
-                latency = (tts_start_time - start_time) * 1000
-                logger.info("Time from end of speech to response preparation and start of TTS: %d ms", latency)
-
-                # Synthesize the GPT response and speak it out
-                result = speech_service.synthesize_speech(gpt_response, settings.SPEECH_RATE)
-                first_byte_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFirstByteLatencyMs))
-                finished_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFinishLatencyMs))
-                result_id = result.result_id
-                logger.info("First byte latency: %d ms", first_byte_latency)
-                logger.info("Finished latency: %d ms", finished_latency)
-                # logger.info("Result ID: %s", result_id)
+                latency = (time.time() - start_time) * 1000
+                logger.info("Time from end of speech to response and start of TTS: %d ms", latency)
 
             elif speech_recognition_result.reason == speechsdk.ResultReason.NoMatch:
                 logger.info("No speech could be recognized.")
@@ -78,6 +77,7 @@ def main() -> None:
                 logger.info("Speech Recognition canceled: %s", cancellation_details.reason)
                 if cancellation_details.reason == speechsdk.CancellationReason.Error:
                     logger.error("Error details: %s", cancellation_details.error_details)
+
         except EOFError:
             break
         except Exception as e:

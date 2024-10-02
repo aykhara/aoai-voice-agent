@@ -1,6 +1,8 @@
 import logging
 import os
+import time
 
+import azure.cognitiveservices.speech as speechsdk
 from openai import AzureOpenAI
 
 logger = logging.getLogger(__name__)
@@ -62,54 +64,72 @@ class OpenAIService:
         classified_intent = response.choices[0].message.content.strip()
         return classified_intent
 
-    def generate_response(self, intent: str, user_input: str) -> str:
+    def ask_openai(self, prompt: str, speech_service, speech_rate: float) -> None:
         """
-        Send the generated response text to OpenAI and get GPT response.
+        Classify intent and generate GPT response in a streaming fashion with latency measurements for each synthesis chunk.
 
         Args:
-            intent (str): The classified intent.
-            user_input (str): The input text from the user.
+            prompt (str): The input text from the user.
+            speech_service: Instance of SpeechService to handle speech synthesis.
 
         Returns:
-            str: The generated GPT response.
+            None: Synthesizes responses as they are received and logs latency.
         """
+        intent = self.classify_intent(prompt)
+        logger.info(f"Classified intent: {intent}")
 
+        # Start generating response based on intent
         if intent == self.intent_subcategory_1:
             prompt = self.prompt_subcategory_1
         elif intent == self.intent_subcategory_2:
             prompt = self.prompt_subcategory_2
         else:
-            system_message_content = "I couldn't classify the intent."
-
-        system_message = {
-            "role": "system",
-            "content": prompt
-        }
+            logger.warning("Could not classify intent.")
+            return
 
         response = self.client.chat.completions.create(
             model=self.deployment_id,
             max_tokens=200,
+            stream=True,
             messages=[
-                system_message,
-                {"role": "user", "content": user_input}
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": prompt}
             ]
         )
-        return response.choices[0].message.content.strip()
 
-    def ask_openai(self, prompt: str) -> str:
-        """
-        Classify intent and generate GPT response.
+        collected_messages = []
+        last_tts_request = None
 
-        Args:
-            prompt (str): The input text from the user.
+        # Iterate through the response stream and synthesize each chunk
+        for chunk in response:
+            if len(chunk.choices) > 0:
+                chunk_message = chunk.choices[0].delta.content
+                if chunk_message:
+                    collected_messages.append(chunk_message)
+                    if any(punct in chunk_message for punct in speech_service.tts_sentence_end):
+                        full_message = ''.join(collected_messages).strip()
+                        if full_message:
+                            logger.info(f"Speech synthesized for: {full_message}")
 
-        Returns:
-            str: The generated response.
-        """
-        intent = self.classify_intent(prompt)
-        logger.info(f"Classified intent: {intent}")
+                            # Measure latency before synthesizing speech
+                            tts_start_time = time.time()
 
-        response_text = self.generate_response(intent, prompt)
+                            result = speech_service.synthesize_speech(full_message, speech_rate)
+                            first_byte_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFirstByteLatencyMs))
+                            finished_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFinishLatencyMs))
+                            result_id = result.result_id
 
-        logger.info(f"Response: {response_text}")
-        return response_text
+                            # Log the latencies for each synthesized chunk
+                            logger.info("First byte latency: %d ms", first_byte_latency)
+                            logger.info("Finished latency: %d ms", finished_latency)
+                            logger.info("Result ID: %s", result_id)
+
+                            # Calculate total latency
+                            total_latency = (time.time() - tts_start_time) * 1000
+                            logger.info("Total synthesis latency: %d ms", total_latency)
+
+                            last_tts_request = result
+                            collected_messages.clear()
+
+        if last_tts_request:
+            last_tts_request.get()
