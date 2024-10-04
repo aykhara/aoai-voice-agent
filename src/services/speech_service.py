@@ -1,9 +1,12 @@
+import logging
 import os
+import time
 
 import azure.cognitiveservices.speech as speechsdk
 
 from src.utils.ssml_generator import SSMLGenerator
 
+logger = logging.getLogger(__name__)
 
 class SpeechService:
     """
@@ -27,8 +30,8 @@ class SpeechService:
         )
         self.speech_config.speech_recognition_language = speech_language
         self.speech_config.speech_synthesis_voice_name = speech_voice
-        silence_timeout = speech_segment_silence_timeout
-        self.speech_config.set_property(speechsdk.PropertyId.Speech_SegmentationSilenceTimeoutMs, silence_timeout)
+        # silence_timeout = speech_segment_silence_timeout
+        self.speech_config.set_property(speechsdk.PropertyId.Speech_SegmentationSilenceTimeoutMs, speech_segment_silence_timeout)
         self.audio_output_config = speechsdk.audio.AudioOutputConfig(use_default_speaker=True)
         self.audio_config = speechsdk.audio.AudioConfig(use_default_microphone=True)
         self.speech_recognizer = speechsdk.SpeechRecognizer(
@@ -49,17 +52,26 @@ class SpeechService:
         Returns:
             speechsdk.SpeechRecognitionResult: The result of the speech recognition.
         """
-        return self.speech_recognizer.recognize_once_async().get()
+        # return self.speech_recognizer.recognize_once_async().get()
+        recognition_start_time = time.time()
+        result = self.speech_recognizer.recognize_once_async().get()
+        recognition_end_time = time.time()
 
-    def synthesize_speech(self, text: str, speech_rate: float) -> speechsdk.SpeechSynthesisResult:
+        recognition_latency = (recognition_end_time - recognition_start_time) * 1000
+        logger.info(f"Speech recognition latency (STT): {recognition_latency} ms")
+
+        return result
+
+    def synthesize_speech_streaming(self, text: str, speech_rate: float):
         """
-        Synthesize text to speech using SSML template.
+        Synthesize speech from the given text and stream audio data.
 
         Args:
-            text (str): The text to be synthesized.
+            text (str): The text to be synthesized into speech.
+            speech_rate (float): The rate at which the speech should be synthesized.
 
         Returns:
-            speechsdk.SpeechSynthesisResult: The result of the speech synthesis.
+            None
         """
         ssml = self.ssml_generator.generate_ssml(
             text=text,
@@ -67,4 +79,20 @@ class SpeechService:
             voice_name=self.speech_config.speech_synthesis_voice_name,
             rate=speech_rate
         )
-        return self.speech_synthesizer.speak_ssml_async(ssml).get()
+        result = self.speech_synthesizer.speak_ssml_async(ssml).get()
+        if result.reason == speechsdk.ResultReason.SynthesizingAudioStarted:
+            logger.info("Speech synthesis started.")
+        elif result.reason == speechsdk.ResultReason.Canceled:
+            cancellation_details = result.cancellation_details
+            logger.error(f"Speech synthesis canceled: {cancellation_details.reason}. Error details: {cancellation_details.error_details}")
+            return
+
+        # Stream the audio data while it's being synthesized
+        audio_stream = speechsdk.AudioDataStream(result)
+        audio_buffer = bytes(16000)
+        filled_size = audio_stream.read_data(audio_buffer)
+        while filled_size > 0:
+            # Process and play the audio buffer here
+            logger.info(f"{filled_size} bytes received and being played.")
+            # Here you would typically send the audio buffer to be played in chunks
+            filled_size = audio_stream.read_data(audio_buffer)

@@ -89,27 +89,41 @@ class OpenAIService:
         response = self.client.chat.completions.create(
             model=self.deployment_id,
             max_tokens=200,
+            stream=True,
             messages=[
                 system_message,
                 {"role": "user", "content": user_input}
             ]
         )
-        return response.choices[0].message.content.strip()
+        return response
 
-    def ask_openai(self, prompt: str) -> str:
+
+    def ask_openai_streaming(self, prompt: str):
         """
-        Classify intent and generate GPT response.
+        Stream responses from GPT-4o using OpenAI API.
 
         Args:
             prompt (str): The input text from the user.
 
-        Returns:
-            str: The generated response.
+        Yields:
+            str: Streaming chunks of the generated response.
         """
         intent = self.classify_intent(prompt)
         logger.info(f"Classified intent: {intent}")
+        response = self.generate_response(intent, prompt)
 
-        response_text = self.generate_response(intent, prompt)
-
-        logger.info(f"Response: {response_text}")
-        return response_text
+         # Yield each chunk as it's streamed
+        for chunk in response:
+            logger.info(f"Chunk received: {chunk}")
+            if hasattr(chunk, 'choices') and len(chunk.choices) > 0:
+                delta = chunk.choices[0].delta
+                if delta:
+                    if hasattr(delta, 'content') and delta.content is not None:
+                        logger.info(f"Streaming content received: {delta.content}")
+                        yield delta.content
+                    else:
+                        logger.info(f"No content in this chunk. Delta: {delta}")
+                else:
+                    logger.warning(f"No delta found in choices. Choices: {chunk.choices}")
+            else:
+                logger.warning(f"No choices found in chunk. Chunk: {chunk}")

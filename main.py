@@ -56,20 +56,32 @@ def main() -> None:
 
                 start_time = time.time()
 
-                gpt_response = openai_service.ask_openai(speech_recognition_result.text)
+                # GPT response via OpenAI service (streaming)
+                streaming_response = openai_service.ask_openai_streaming(speech_recognition_result.text)
 
                 tts_start_time = time.time()
                 latency = (tts_start_time - start_time) * 1000
                 logger.info("Time from end of speech to response preparation and start of TTS: %d ms", latency)
 
-                # Synthesize the GPT response and speak it out
-                result = speech_service.synthesize_speech(gpt_response, settings.SPEECH_RATE)
-                first_byte_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFirstByteLatencyMs))
-                finished_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFinishLatencyMs))
-                result_id = result.result_id
-                logger.info("First byte latency: %d ms", first_byte_latency)
-                logger.info("Finished latency: %d ms", finished_latency)
-                # logger.info("Result ID: %s", result_id)
+                # Stream the response as it is being received and synthesize it to speech
+                full_response = ""
+                for chunk in streaming_response:
+                    logger.info(f"Received chunk: {chunk}")
+                    if chunk:
+                        full_response += chunk
+                        # Start streaming the speech synthesis as chunks come in
+                        speech_service.synthesize_speech_streaming(chunk, settings.SPEECH_RATE)
+
+                logger.info(f"Full response: {full_response}")
+
+                # # Synthesize the GPT response and speak it out
+                # result = speech_service.synthesize_speech(gpt_response, settings.SPEECH_RATE)
+                # first_byte_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFirstByteLatencyMs))
+                # finished_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFinishLatencyMs))
+                # result_id = result.result_id
+                # logger.info("First byte latency (TTS): %d ms", first_byte_latency)
+                # logger.info("Finished latency (TTS): %d ms", finished_latency)
+                # # logger.info("Result ID: %s", result_id)
 
             elif speech_recognition_result.reason == speechsdk.ResultReason.NoMatch:
                 logger.info("No speech could be recognized.")

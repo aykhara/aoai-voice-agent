@@ -1,5 +1,7 @@
 # Voice Agent with Azure OpenAI and Azure AI Speech
 
+A sample that streams and processes text-to-speech data immediately after the synthesis starts, allowing playback of the audio data even before the synthesis is complete when a streaming text response is received.
+
 ## Prerequisites
 
 Ensure you have Python installed on your system. This script requires Python 3.10 or higher.
