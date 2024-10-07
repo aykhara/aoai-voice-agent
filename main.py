@@ -53,6 +53,8 @@ def main() -> None:
                     logger.info("Conversation ended.")
                     break
                 logger.info("Recognized speech: %s", speech_recognition_result.text)
+                # logger.info("Offset: %d", speech_recognition_result.offset)
+                # logger.info("Duration: %d", speech_recognition_result.duration)
 
                 start_time = time.time()
 
@@ -63,13 +65,16 @@ def main() -> None:
                 logger.info("Time from end of speech to response preparation and start of TTS: %d ms", latency)
 
                 # Synthesize the GPT response and speak it out
-                result = speech_service.synthesize_speech(gpt_response, settings.SPEECH_RATE)
-                first_byte_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFirstByteLatencyMs))
-                finished_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFinishLatencyMs))
-                result_id = result.result_id
-                logger.info("First byte latency: %d ms", first_byte_latency)
-                logger.info("Finished latency: %d ms", finished_latency)
-                # logger.info("Result ID: %s", result_id)
+                result = speech_service.synthesize_speech_streaming(gpt_response, settings.SPEECH_RATE)
+                if result is not None:
+                    first_byte_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFirstByteLatencyMs))
+                    finished_latency = int(result.properties.get_property(speechsdk.PropertyId.SpeechServiceResponse_SynthesisFinishLatencyMs))
+                    result_id = result.result_id
+                    logger.info("First byte latency: %d ms", first_byte_latency)
+                    logger.info("Finished latency: %d ms", finished_latency)
+                    # logger.info("Result ID: %s", result_id)
+                else:
+                    logger.error("Speech synthesis failed.")
 
             elif speech_recognition_result.reason == speechsdk.ResultReason.NoMatch:
                 logger.info("No speech could be recognized.")

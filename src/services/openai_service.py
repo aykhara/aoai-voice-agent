@@ -62,28 +62,27 @@ class OpenAIService:
         classified_intent = response.choices[0].message.content.strip()
         return classified_intent
 
-    def generate_response(self, intent: str, user_input: str) -> str:
+    def generate_response(self, user_input: str) -> str:
         """
         Send the generated response text to OpenAI and get GPT response.
 
         Args:
-            intent (str): The classified intent.
             user_input (str): The input text from the user.
 
         Returns:
             str: The generated GPT response.
         """
 
-        if intent == self.intent_subcategory_1:
-            prompt = self.prompt_subcategory_1
-        elif intent == self.intent_subcategory_2:
-            prompt = self.prompt_subcategory_2
-        else:
-            system_message_content = "I couldn't classify the intent."
+        # if intent == self.intent_subcategory_1:
+        #     prompt = self.prompt_subcategory_1
+        # elif intent == self.intent_subcategory_2:
+        #     prompt = self.prompt_subcategory_2
+        # else:
+        #     system_message_content = "I couldn't classify the intent."
 
         system_message = {
             "role": "system",
-            "content": prompt
+            "content": self.prompt_subcategory_1
         }
 
         response = self.client.chat.completions.create(
@@ -106,10 +105,10 @@ class OpenAIService:
         Returns:
             str: The generated response.
         """
-        intent = self.classify_intent(prompt)
-        logger.info(f"Classified intent: {intent}")
+        # intent = self.classify_intent(prompt)
+        # logger.info(f"Classified intent: {intent}")
 
-        response_text = self.generate_response(intent, prompt)
+        response_text = self.generate_response(prompt)
 
         logger.info(f"Response: {response_text}")
         return response_text
