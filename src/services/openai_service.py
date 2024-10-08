@@ -88,28 +88,60 @@ class OpenAIService:
 
         response = self.client.chat.completions.create(
             model=self.deployment_id,
-            max_tokens=200,
+            # max_tokens=200,
             messages=[
                 system_message,
                 {"role": "user", "content": user_input}
-            ]
+            ],
+            stream=True
         )
-        return response.choices[0].message.content.strip()
+        # return response.choices[0].message.content.strip()
+        return response
 
-    def ask_openai(self, prompt: str) -> str:
+    # def ask_openai(self, prompt: str) -> str:
+    #     """
+    #     Classify intent and generate GPT response.
+
+    #     Args:
+    #         prompt (str): The input text from the user.
+
+    #     Returns:
+    #         str: The generated response.
+    #     """
+    #     intent = self.classify_intent(prompt)
+    #     logger.info(f"Classified intent: {intent}")
+
+    #     response_text = self.generate_response(intent, prompt)
+
+    #     logger.info(f"Response: {response_text}")
+    #     return response_text
+
+    def ask_openai_streaming(self, speech_service, prompt: str) -> None:
         """
-        Classify intent and generate GPT response.
+        GPTからの応答をリアルタイムで取得し、各テキストチャンクを音声合成サービスに送信します。
 
         Args:
-            prompt (str): The input text from the user.
-
-        Returns:
-            str: The generated response.
+            speech_service (SpeechService): 音声合成サービスインスタンス。
+            prompt (str): ユーザーからの入力テキスト。
         """
         intent = self.classify_intent(prompt)
         logger.info(f"Classified intent: {intent}")
 
-        response_text = self.generate_response(intent, prompt)
+        # ストリーミングレスポンスを取得
+        # response_text_stream = self.client.chat.completions.create(
+        #     model=self.deployment_id,
+        #     messages=[
+        #         {"role": "system", "content": self.prompt_classify_intent},
+        #         {"role": "user", "content": prompt}
+        #     ],
+        #     stream=True
+        # )
+        response_text_stream = self.generate_response(intent, prompt)
+        logger.info(f"Response: {response_text_stream}")
 
-        logger.info(f"Response: {response_text}")
-        return response_text
+        # 各チャンクを処理し、音声合成へ送信
+        for chunk in response_text_stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                text_chunk = chunk.choices[0].delta.content
+                logger.info(f"Streaming text chunk: {text_chunk}")
+                speech_service.synthesize_streamed_audio(text_chunk)
