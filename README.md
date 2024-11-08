@@ -1,32 +1,23 @@
 # Voice Agent with Azure OpenAI and Azure AI Speech
 
+This is a sample application that uses Azure AI Speech to interact with the Azure OpenAI Service. The text recognized by the Speech service is sent to Azure OpenAI, where a response is generated based on classified intent. The Speech service then synthesizes speech using SSML (Speech Synthesis Markup Language) from the text response provided by Azure OpenAI. This sample is implemented to receive the entire GPT response (non-text stream), immediately forward its audio chunks, and play them in a streaming audio output.
+
+## Architecture
+
+![architecture](./images/architecture.png)
+
 ## Prerequisites
 
 Ensure you have Python installed on your system. This script requires Python 3.10 or higher.
 
 ### Setup Azure Resources
 
-To create the necessary Azure resources, you can use the [iac-promptflow-starter](https://github.com/aykhara/iac-promptflow-starter) repository. Follow these steps:
+- Create an Azure OpenAI Service resource and deploy a model
+- Create a Speech resource
 
-1. Fork the repository:
+## Getting Started
 
-   - Go to the [iac-promptflow-starter repository](https://github.com/aykhara/iac-promptflow-starter) on GitHub.
-   - Click the "Fork" button in the top-right corner of the page.
-   - Choose your GitHub account to fork the repository.
-
-1. Clone your forked repository:
-
-   ```sh
-   git clone https://github.com/<your-username>/iac-promptflow-starter.git
-   cd iac-promptflow-starter
-
-   ```
-
-1. Follow the instructions in the repository's README to set up the required Azure resources.
-
-## Setup
-
-1. **Install Dependencies**
+1. Install Dependencies
 
    Use pip to install the required packages:
 
@@ -34,14 +25,14 @@ To create the necessary Azure resources, you can use the [iac-promptflow-starter
    pip install -r requirements.txt
    ```
 
-1. **Create .env file**
+1. Create .env file
 
    Copy `.env.template` to `.env` and fill in the necessary values.
 
-## Usage
+1. Start speech recognition from a microphone
 
-Run the `main.py` script to use Azure AI Speech to converse with Azure OpenAI Service.
+   Run the `main.py` script to use Azure AI Speech to converse with Azure OpenAI Service.
 
-```sh
-python -m main
-```
+   ```sh
+   python -m main
+   ```
